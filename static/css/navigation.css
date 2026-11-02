@@ -1,0 +1,102 @@
+/* position:fixed вместо sticky — на iOS Safari sticky-хэдер может на
+   мгновение "мигать"/пропускать контент поверх себя при резком скролле
+   или упругом оттягивании (rubber-band bounce) вверху страницы; fixed
+   всегда закреплён относительно вьюпорта и этого артефакта не даёт.
+   body ниже компенсирует высоту хэдера (44px + 2px рамка), которую
+   fixed-элемент выводит из потока документа. */
+.navbar {
+  background: var(--km-dark-nav);
+  border-bottom: 2px solid var(--km-primary);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+body {
+  padding-top: 46px;
+}
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 20px;
+}
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.navbar-logo-img {
+  display: block;
+  height: 26px;
+  width: auto;
+}
+.navbar-menu {
+  display: flex;
+  list-style: none;
+  gap: 0;
+  margin: 0 auto;
+  padding: 0;
+}
+.navbar-link {
+  color: var(--km-text-muted);
+  text-decoration: none;
+  padding: 0 16px;
+  height: 44px;
+  line-height: 44px;
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 2px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+.navbar-link:hover { color: #fff; }
+.navbar-link.active {
+  color: var(--km-primary);
+  border-bottom-color: var(--km-primary);
+}
+.navbar-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+}
+.navbar-toggle span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  border-radius: 2px;
+}
+@media (max-width: 640px) {
+  .navbar-toggle { display: flex; }
+  .navbar-menu {
+    display: none;
+    position: absolute;
+    top: 44px;
+    left: 0;
+    right: 0;
+    background: var(--km-dark-nav);
+    flex-direction: column;
+    border-top: 1px solid #333;
+    z-index: 200;
+  }
+  .navbar-menu.active { display: flex; }
+  .navbar-link {
+    padding: 12px 20px;
+    height: auto;
+    line-height: 1.4;
+    border-bottom: 1px solid #333;
+  }
+  .navbar-link.active { border-bottom: 1px solid var(--km-primary); }
+}

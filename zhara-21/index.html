@@ -1,0 +1,125 @@
+﻿<!-- legacy/templates/tracker.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta name="robots" content="noindex">
+<link rel="stylesheet" href="/race-tracker-demo/static/demo/demo-replay.css">
+<script src="/race-tracker-demo/static/demo/demo-replay.js" data-base="/race-tracker-demo/" data-race="zhara_21" data-gun-ms="1787450400800" data-start-s="1800"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Жара, 21,1 км — демо трекера</title>
+    <meta name="description" content="Live-трекер участников забега на карте">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Жара, 21,1 км — демо трекера">
+    <meta property="og:description" content="Live-трекер участников забега на карте">
+    <meta property="og:image" content="https://results.krasmarafon.ru/race-tracker-demo/static/images/krasmarafon/favicon-512.png">
+    <meta property="og:url" content="https://results.krasmarafon.ru/tracker">
+    <link rel="icon" href="/race-tracker-demo/static/images/krasmarafon/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" href="/race-tracker-demo/static/images/krasmarafon/favicon-32.png" sizes="32x32">
+    <link rel="apple-touch-icon" href="/race-tracker-demo/static/images/krasmarafon/apple-touch-icon.png">
+    <link rel="stylesheet" href="/race-tracker-demo/static/lib/leaflet-1.9.4/leaflet.css"/>
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/km-design-tokens.css?v=demo">
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/krasmarafon-header.css?v=demo">
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/navigation.css?v=demo">
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/tracker.css?v=demo">
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/krasmarafon-footer.css?v=demo">
+</head>
+<body>
+    <header style="display:flex;align-items:center;gap:16px;padding:12px 16px;background:#14181f;color:#fff;font:15px system-ui,sans-serif">
+  <a href="/race-tracker-demo/" style="color:#fff;text-decoration:none;opacity:.85">← Все демо</a>
+  <strong>Жара, 21,1 км</strong>
+</header>
+
+    <div class="container">
+        <div class="header">
+            <h1 id="eventTitle">Трекер забега</h1>
+        </div>
+
+        <div class="km-notice-preliminary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/>
+            <path d="M12 9v4"/><path d="M12 17h.01"/>
+          </svg>
+          Результаты предварительные и могут измениться после завершения мероприятия
+        </div>
+
+        <!-- Переключатель дистанций (скрыт если дистанция одна) -->
+        <div id="distanceSwitcher" class="distance-switcher" style="display:none;"></div>
+
+        <div id="runner-panel" class="runner-panel runner-panel--hidden">
+            <button class="runner-panel__close" onclick="hideRunnerPanel()">✕</button>
+            <div id="runner-panel-content"></div>
+        </div>
+
+        <div class="tracker-container">
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+            <div class="controls-panel">
+                <!-- Поисковая строка и результаты -->
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Поиск по номеру или фамилии...">
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+
+                <!-- Контейнер для выбранных участников (между поиском и кнопками) -->
+                <div class="selected-runners-container">
+                    <div class="selected-title">
+                        <div class="title-text">Отслеживаемые участники</div>
+                        <div class="count-container">
+                            (<span id="selectedCount">0</span>/ 5 )
+                            <span id="selection-limit-warning" class="limit-warning" style="display: none;">
+                                Достигнут лимит!
+                            </span>
+                        </div>
+                    </div>
+                    <div class="selected-list" id="selectedList">
+                        <div class="empty-selection">Нет выбранных участников</div>
+                    </div>
+                </div>
+
+                <!-- Кнопки (теперь в самом низу) -->
+                <div class="controls-buttons">
+                    <button class="control-btn primary" onclick="centerMap()">Центрировать карту</button>
+                    <button class="control-btn secondary" onclick="clearSelection()">Очистить выбор</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-panel" id="statusPanel">
+            Загрузка данных...
+        </div>
+
+        <!-- Блок с аналитикой -->
+        <div class="analytics-panel" id="analyticsPanel">
+            <h2>Общая аналитика по забегу</h2>
+            <div id="analyticsContent">
+                <p>Загрузка аналитических данных...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/race-tracker-demo/static/lib/leaflet-1.9.4/leaflet.js"></script>
+    <script>
+        window.EVENT_CONFIG = {"code": "zhara", "coordinates": [56.0075, 92.7246], "description": "\u0416\u0430\u0440\u0430, \u041a\u0440\u0430\u0441\u043d\u043e\u044f\u0440\u0441\u043a, 23.08.2026 \u2014 \u0437\u0430\u043f\u0438\u0441\u044c \u0440\u0435\u0430\u043b\u044c\u043d\u043e\u0439 \u0433\u043e\u043d\u043a\u0438", "distance": "21.1 \u043a\u043c", "id": 116, "name": "\u0416\u0430\u0440\u0430", "title": "\u0416\u0430\u0440\u0430, 21,1 \u043a\u043c", "year": 2026};
+        console.log('Event config установлен:', window.EVENT_CONFIG);
+    </script>
+    <script src="/race-tracker-demo/static/js/utils.js?v=demo"></script>
+    <script src="/race-tracker-demo/static/js/realtime.js?v=demo"></script>
+    <script src="/race-tracker-demo/static/js/tracker-api.js?v=demo"></script>
+    <script src="/race-tracker-demo/static/js/tracker-search.js?v=demo"></script>
+    <script src="/race-tracker-demo/static/js/tracker-map.js?v=demo"></script>
+    <script>
+        console.log('Инициализация трекера для Event ID =', window.EVENT_CONFIG.id);
+        CONFIG.EVENT_NAME = window.EVENT_CONFIG.code;
+        CONFIG.EVENT_ID   = window.EVENT_CONFIG.id;
+        setTimeout(() => { init(); }, 100);
+    </script>
+
+    <!-- Включаем официальный футер Красмарафона -->
+    
+</body>
+</html>
