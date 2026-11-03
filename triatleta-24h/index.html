@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="/race-tracker-demo/static/demo/demo-replay.css">
+<script src="/race-tracker-demo/static/demo/demo-replay.js" data-mode="poll" data-format="ep" data-base="/race-tracker-demo/" data-race="triatleta_24h" data-slug="triatleta-24h" data-gun-ms="1782392400000" data-start-s="7200" data-t-from="-300" data-t-to="86548" data-endpoints="[{&quot;re&quot;:&quot;^/api/tri/standings$&quot;,&quot;ep&quot;:&quot;standings&quot;},{&quot;re&quot;:&quot;^/api/tri/laps$&quot;,&quot;ep&quot;:&quot;laps&quot;}]" data-refresh="loadStandings,loadLaps"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triatleta — Суточная велогонка 24ч</title>
+    <link rel="icon" type="image/x-icon" href="/race-tracker-demo/static/images/favicon_tri_dark.ico" media="(prefers-color-scheme: light)">
+    <link rel="icon" type="image/x-icon" href="/race-tracker-demo/static/images/favicon_tri_light.ico" media="(prefers-color-scheme: dark)">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/race-tracker-demo/static/css/tri_results.css?v=demo">
+</head>
+<body>
+<div class="demo-strip" style="display:flex;align-items:center;gap:16px;padding:12px 16px;background:#14181f;color:#fff;font:15px system-ui,sans-serif"><a href="/race-tracker-demo/" style="color:#fff;text-decoration:none;opacity:.85">← Все демо</a><span>Триатлет 24 ч, 25–26.06.2026 — запись реальной гонки</span></div>
+    <div class="tri-header">
+        <div>
+            <div class="tri-header__eyebrow">Triatleta · 24 часа</div>
+            <div class="tri-header__title">Суточная велогонка<br>25–26 июня 2026</div>
+            <div class="tri-header__meta">Красноярск · Триатлон-центр · Круг: 4.04 км</div>
+        </div>
+        <div class="tri-elapsed-wrap">
+            <div class="tri-elapsed-label" id="elapsed-label">До старта</div>
+            <div class="tri-elapsed" id="elapsed">—</div>
+        </div>
+    </div>
+
+    <!-- Табы страницы -->
+    <div class="tri-page-tabs">
+        <button class="tri-page-tab active" data-tab="distance" onclick="switchPageTab('distance', this)">Расстояние</button>
+        <button class="tri-page-tab" data-tab="segments" onclick="switchPageTab('segments', this)">Отрезки</button>
+        <button class="tri-page-tab" data-tab="chart" onclick="switchPageTab('chart', this)">График</button>
+        <button class="tri-page-tab" data-tab="laps" onclick="switchPageTab('laps', this)">Круги</button>
+    </div>
+
+    <!-- Фильтры -->
+    <div class="tri-toolbar">
+        <div class="tri-filter-group">
+            <label class="tri-label">Зачёт:</label>
+            <select id="filter-category" class="tri-select" onchange="applyFilters()">
+                <option value="">Все</option>
+                <option value="personal">Личный</option>
+                <option value="Эстафета">Эстафета</option>
+            </select>
+        </div>
+        <div class="tri-filter-group">
+            <label class="tri-label">Пол:</label>
+            <select id="filter-gender" class="tri-select" onchange="applyFilters()">
+                <option value="">Все</option>
+                <option value="Мужчина">Мужчины</option>
+                <option value="Женщина">Женщины</option>
+            </select>
+        </div>
+        <div class="tri-filter-group">
+            <input type="search" id="filter-search" class="tri-search"
+                   placeholder="Поиск по фамилии"
+                   oninput="applyFilters()" onkeydown="if(event.key==='Enter')applyFilters()">
+        </div>
+        <span class="tri-results-count" id="results-count"></span>
+    </div>
+
+    <div class="tri-container">
+
+        <!-- Таб: Расстояние -->
+        <div id="tab-distance">
+            <div class="tri-table-wrap">
+                <table class="tri-table">
+                    <thead>
+                        <tr>
+                            <th class="tri-rank">Место</th>
+                            <th class="tri-bib">Номер</th>
+                            <th>Участник</th>
+                            <th>Зачёт</th>
+                            <th>Км</th>
+                            <th>Кругов</th>
+                            <th>Ср. скорость</th>
+                            <th>Отставание</th>
+                        </tr>
+                    </thead>
+                    <tbody id="standings-body">
+                        <tr><td colspan="8" style="text-align:center;color:var(--tri-muted);padding:24px">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="tri-refresh" id="refresh-label"></div>
+            <div id="best-lap-banner" class="tri-record-banner" style="display:none"></div>
+            <div id="record-2025" class="tri-record-banner">
+                👑 Рекорд 2025: Артемьев Анатолий — 715.1 км · 177 кругов · 29.8 км/ч
+            </div>
+        </div>
+
+        <!-- Таб: Отрезки -->
+        <div id="tab-segments" style="display:none">
+            <div class="tri-splits">
+                <div class="tri-slider-wrap">
+                    <label class="tri-slider-label">
+                        С часа: <span id="from-val">1</span>
+                        <input type="range" id="from-slider" min="1" max="24" value="1" oninput="onSlider()">
+                    </label>
+                    <label class="tri-slider-label">
+                        По час: <span id="to-val">24</span>
+                        <input type="range" id="to-slider" min="1" max="24" value="24" oninput="onSlider()">
+                    </label>
+                </div>
+                <div class="tri-table-wrap">
+                    <table class="tri-table">
+                        <thead>
+                            <tr>
+                                <th class="tri-rank">Место</th>
+                                <th class="tri-bib">Номер</th>
+                                <th>Участник</th>
+                                <th>Зачёт</th>
+                                <th>Км</th>
+                                <th>Кругов</th>
+                                <th>Ср. скорость</th>
+                                <th>Отставание</th>
+                            </tr>
+                        </thead>
+                        <tbody id="splits-body">
+                            <tr><td colspan="8" style="text-align:center;color:var(--tri-muted);padding:16px">Ожидание данных...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таб: Круги -->
+        <div id="tab-laps" style="display:none">
+            <div class="tri-laps-slider-wrap">
+                <div class="tri-laps-slider-header">
+                    <span class="tri-label">Диапазон кругов:</span>
+                    <span id="laps-range-label" class="tri-laps-range-label">Круги 1 — 1</span>
+                </div>
+                <div class="tri-laps-sliders">
+                    <label class="tri-slider-label">
+                        С круга: <span id="laps-from-val">1</span>
+                        <input type="range" id="laps-from-slider" min="1" max="1" value="1" oninput="onLapsSlider()">
+                    </label>
+                    <label class="tri-slider-label">
+                        По круг: <span id="laps-to-val">1</span>
+                        <input type="range" id="laps-to-slider" min="1" max="1" value="1" oninput="onLapsSlider()">
+                    </label>
+                </div>
+                <div id="laps-slider-meta" class="tri-laps-slider-meta"></div>
+            </div>
+            <div class="tri-table-wrap">
+                <table class="tri-table tri-laps-table">
+                    <thead>
+                        <tr>
+                            <th class="tri-rank">Место</th>
+                            <th class="tri-bib">Номер</th>
+                            <th>Участник</th>
+                            <th>Кругов</th>
+                            <th class="tri-laps-th-best">Лучший ↑</th>
+                            <th>Худший</th>
+                            <th>Средний</th>
+                            <th>Разброс</th>
+                            <th style="width:28px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="laps-body">
+                        <tr><td colspan="8" style="text-align:center;color:var(--tri-muted);padding:24px">Загрузка...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Таб: График (вне tri-container — full width) -->
+    <div id="tab-chart" style="display:none">
+        <div class="tri-chart-subtabs">
+            <button class="tri-chart-subtab tri-chart-subtab-speed active" data-type="speed" onclick="switchChartType('speed', this)">Скорость</button>
+            <button class="tri-chart-subtab tri-chart-subtab-distance" data-type="distance" onclick="switchChartType('distance', this)">Дистанция</button>
+            <button class="tri-chart-subtab" data-type="position" onclick="switchChartType('position', this)">Позиция</button>
+        </div>
+        <div class="tri-chart-mobile-bar">
+            <div class="tri-chart-mobile-trigger" onclick="openChartSheet()">
+                <span class="tri-chart-mobile-label">Участники</span>
+                <span class="tri-chart-mobile-badge" id="chart-mobile-badge">0</span>
+                <span class="tri-chart-mobile-hint">нажмите для выбора ›</span>
+            </div>
+            <div class="tri-chart-mobile-chips" id="chart-mobile-chips"></div>
+        </div>
+        <div class="tri-chart-layout">
+            <div class="tri-chart-sidebar">
+                <div class="tri-chart-sidebar__hint">Выберите участников</div>
+                <div class="tri-chart-sidebar__actions">
+                    <button class="tri-chart-select-btn" onclick="selectAllChartPids()">Все</button>
+                    <button class="tri-chart-select-btn" onclick="clearAllChartPids()">Сбросить</button>
+                </div>
+                <div id="chart-legend-list"></div>
+            </div>
+            <div class="tri-chart-main">
+                <div class="tri-chart-mobile-info" id="chart-mobile-info" style="display:none"></div>
+                <div class="tri-chart-wrap" id="chart-speed-wrap">
+                    <canvas id="tri-chart"></canvas>
+                </div>
+                <div class="tri-chart-wrap" id="chart-distance-wrap" style="display:none">
+                    <canvas id="tri-chart-distance"></canvas>
+                </div>
+                <div class="tri-chart-wrap" id="chart-position-wrap" style="display:none">
+                    <canvas id="tri-chart-position"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="tri-refresh" id="chart-refresh-label"></div>
+        <div class="tri-chart-sheet-overlay" id="chart-sheet-overlay" onclick="closeChartSheet()"></div>
+        <div class="tri-chart-sheet" id="chart-sheet">
+            <div class="tri-chart-sheet-handle"></div>
+            <div class="tri-chart-sheet-header">
+                <span>Выбор участников</span>
+                <div class="tri-chart-sheet-header-actions">
+                    <button class="tri-chart-sheet-header-btn" onclick="selectAllChartPids()">Все</button>
+                    <button class="tri-chart-sheet-header-btn muted" onclick="clearAllChartPids()">Сбросить</button>
+                </div>
+            </div>
+            <div id="chart-sheet-list"></div>
+        </div>
+    </div>
+
+    <script src="/race-tracker-demo/static/lib/chart4/chart.umd.min.js"></script>
+    <script>
+    const GUN_UTC_MS = new Date('2026-06-25T13:00:00Z').getTime();
+    const LAP_KM = 4.040;
+    // ?test_race_h=15 — подменяет "текущее время гонки" для тестирования питстопов
+    const _testRaceH = parseFloat(new URLSearchParams(location.search).get('test_race_h') || '0');
+    let allStandings = [];
+    let allLaps = [];
+    let filteredPids = new Set();
+    // --- Вкладка «Круги» ---
+    let lapsRangeFrom = 1;
+    let lapsRangeTo = 1;
+    let openLapsRows = new Set();  // Set<participant_id>
+    let triChart = null;
+    let triChartDistance = null;
+    let selectedChartPids = new Set();
+    let chartDatasetPids = [];
+    let triChartPosition = null;
+    let activeChartType = 'speed';
+    const CHART_COLORS = [
+        '#FF8562','#263146','#18A558','#DE0000','#4B7BE5',
+        '#F5A623','#9B59B6','#1ABC9C','#E67E22','#2C3E50'
+    ];
+
+    function switchChartType(type, btn) {
+        activeChartType = type;
+        document.querySelectorAll('.tri-chart-subtab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('chart-speed-wrap').style.display    = type === 'speed'    ? '' : 'none';
+        document.getElementById('chart-distance-wrap').style.display = type === 'distance' ? '' : 'none';
+        document.getElementById('chart-position-wrap').style.display = type === 'position' ? '' : 'none';
+        // requestAnimationFrame гарантирует что контейнер уже отрисован с правильными размерами
+        requestAnimationFrame(() => {
+            if (type === 'speed')    renderChart();
+            if (type === 'distance') renderDistanceChart();
+            if (type === 'position') renderPositionChart();
+        });
+    }
+
+    function isMobile() { return window.innerWidth <= 640; }
+
+    // Динамический max по оси X: текущее время гонки + 1ч буфер, не более 24ч
+    function _chartXMax() {
+        const elapsed = (Date.now() - GUN_UTC_MS) / 3600000;
+        return Math.min(24, Math.max(Math.ceil(elapsed) + 1, 4));
+    }
+
+    // Для эстафетных команд (gender==='mixed') показываем только название команды (surname)
+    function _participantLabel(pid, surname, name) {
+        return allStandings.find(r => r.id === pid)?.gender === 'mixed' ? surname : `${surname} ${name}`;
+    }
+
+    // Стабильный цвет участника: по позиции в алфавитном порядке среди filteredPids
+    function _getColorForPid(pid) {
+        const sorted = allStandings
+            .filter(r => filteredPids.has(r.id))
+            .sort((a, b) => a.surname.localeCompare(b.surname));
+        const idx = sorted.findIndex(r => r.id === pid);
+        return CHART_COLORS[(idx >= 0 ? idx : 0) % CHART_COLORS.length];
+    }
+
+    // Плашка над графиком на мобильном (используется как external tooltip)
+    function _mobileInfoExternal({ chart, tooltip }) {
+        if (!isMobile()) return;
+        const panel = document.getElementById('chart-mobile-info');
+        if (!panel) return;
+        if (!tooltip.dataPoints?.length || tooltip.opacity === 0) return;
+        const cursorX = chart.scales.x?.getValueForPixel(tooltip.caretX);
+        if (cursorX == null) return;
+        const entries = [];
+        chart.data.datasets.forEach((ds, dsIdx) => {
+            const pid = chartDatasetPids[dsIdx];
+            if (!selectedChartPids.has(pid)) return;
+            let yVal = null;
+            for (let j = 0; j < ds.data.length; j++) {
+                if (ds.data[j].x <= cursorX) yVal = ds.data[j].y;
+                else break;
+            }
+            if (yVal === null) return;
+            entries.push({ ds, yVal });
+        });
+        if (!entries.length) return;
+        if (activeChartType === 'position') entries.sort((a, b) => a.yVal - b.yVal);
+        else entries.sort((a, b) => b.yVal - a.yVal);
+        const rows = entries.map(({ ds, yVal }) => {
+            let val;
+            if (activeChartType === 'distance') val = yVal.toFixed(1) + ' км';
+            else if (activeChartType === 'position') val = 'Место ' + Math.round(yVal);
+            else val = yVal.toFixed(1) + ' км/ч';
+            return `<div class="tri-chart-info-row">
+                <span class="tri-chart-info-dot" style="background:${ds._color}"></span>
+                <span class="tri-chart-info-name">${ds.label}</span>
+                <span class="tri-chart-info-val">${val}</span>
+            </div>`;
+        });
+        panel.style.display = 'block';
+        panel.innerHTML = `<div class="tri-chart-info-time">${cursorX.toFixed(1)} ч от старта</div>${rows.join('')}`;
+    }
+    function _syncMobileChart() {
+        if (!isMobile()) return;
+        const badge = document.getElementById('chart-mobile-badge');
+        if (badge) badge.textContent = selectedChartPids.size;
+
+        const chipsEl = document.getElementById('chart-mobile-chips');
+        if (chipsEl) {
+            chipsEl.innerHTML = [...selectedChartPids].map(pid => {
+                const color = _getColorForPid(pid);
+                const p = allStandings.find(r => r.id === pid);
+                const name = p ? p.surname : pid;
+                return `<div class="tri-chart-mobile-chip">
+                    <span class="tri-chart-mobile-chip-dot" style="background:${color}"></span>${name}</div>`;
+            }).join('');
+        }
+
+        if (selectedChartPids.size === 0) {
+            const panel = document.getElementById('chart-mobile-info');
+            if (panel) panel.style.display = 'none';
+        }
+
+        document.querySelectorAll('.tri-chart-sheet-item').forEach(el => {
+            const pid = parseInt(el.dataset.pid);
+            el.querySelector('.tri-chart-sheet-check')?.classList.toggle('on', selectedChartPids.has(pid));
+        });
+    }
+
+    function openChartSheet() {
+        const list = document.getElementById('chart-sheet-list');
+        if (!list) return;
+        const filtered = allStandings
+            .filter(r => filteredPids.has(r.id))
+            .sort((a, b) => a.surname.localeCompare(b.surname));
+        list.innerHTML = filtered.map(p => {
+            const color = _getColorForPid(p.id);
+            const isChecked = selectedChartPids.has(p.id);
+            return `<div class="tri-chart-sheet-item" data-pid="${p.id}" onclick="toggleChartPid(${p.id})">
+                <span class="tri-chart-sheet-dot" style="background:${color}"></span>
+                <span class="tri-chart-sheet-name">${p.gender === 'mixed' ? p.surname : `${p.surname} ${p.name}`}</span>
+                <span class="tri-chart-sheet-km">${(parseFloat(p.total_km) || 0).toFixed(1)} км</span>
+                <span class="tri-chart-sheet-check${isChecked ? ' on' : ''}">✓</span>
+            </div>`;
+        }).join('');
+        document.getElementById('chart-sheet')?.classList.add('open');
+        document.getElementById('chart-sheet-overlay')?.classList.add('open');
+    }
+
+    function closeChartSheet() {
+        document.getElementById('chart-sheet')?.classList.remove('open');
+        document.getElementById('chart-sheet-overlay')?.classList.remove('open');
+    }
+
+    function _renderActiveChart() {
+        if (activeChartType === 'position') renderPositionChart();
+        else if (activeChartType === 'distance') renderDistanceChart();
+        else renderChart();
+    }
+
+    function toggleChartPid(pid) {
+        if (selectedChartPids.has(pid)) {
+            selectedChartPids.delete(pid);
+        } else {
+            selectedChartPids.add(pid);
+        }
+        document.querySelectorAll('.tri-chart-legend-item').forEach(el => {
+            el.classList.toggle('active', selectedChartPids.has(+el.dataset.pid));
+        });
+        _renderActiveChart();
+        _syncMobileChart();
+    }
+
+    function selectAllChartPids() {
+        allStandings.filter(r => filteredPids.has(r.id)).forEach(r => selectedChartPids.add(r.id));
+        document.querySelectorAll('.tri-chart-legend-item').forEach(el => el.classList.add('active'));
+        _renderActiveChart();
+        _syncMobileChart();
+    }
+
+    function clearAllChartPids() {
+        selectedChartPids.clear();
+        document.querySelectorAll('.tri-chart-legend-item').forEach(el => el.classList.remove('active'));
+        _renderActiveChart();
+        _syncMobileChart();
+    }
+
+    // Быстрое обновление цветов позиционного чарта без пересчёта данных
+    function _updatePositionSelection() {
+        if (!triChartPosition) { renderPositionChart(); return; }
+        const hasSelection = selectedChartPids.size > 0;
+        triChartPosition.data.datasets.forEach((ds, i) => {
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            const isSelected = hasSelection && selectedChartPids.has(chartDatasetPids[i]);
+            ds._isSelected = isSelected;
+            let lineColor, lineWidth, endRadius;
+            if (!hasSelection)   { lineColor = '#c8c8c8'; endRadius = 3; lineWidth = 1.5; }
+            else if (isSelected) { lineColor = color; endRadius = 6; lineWidth = isMobile() ? 3 : 2.5; }
+            else                 { lineColor = isMobile() ? 'rgba(0,0,0,0.07)' : '#e0e0e0'; endRadius = 0; lineWidth = 1; }
+            ds.borderColor = ds.backgroundColor = lineColor;
+            ds.borderWidth = lineWidth;
+            const n = ds.data.length;
+            ds.pointRadius      = ds.data.map((_, j) => j === n - 1 ? endRadius : 0);
+            ds.pointHoverRadius = ds.pointRadius.map(r => r ? r + 2 : 4);
+        });
+        triChartPosition.update('none');
+    }
+
+    // ---- Таймер: обратный отсчёт до старта / прошедшее время ----
+    const RACE_DURATION_MS = 24 * 3600000;
+    function updateElapsed() {
+        const diff = Date.now() - GUN_UTC_MS;
+        if (diff >= RACE_DURATION_MS) {
+            document.getElementById('elapsed').textContent = '24:00:00';
+            document.getElementById('elapsed-label').textContent = 'Финиш';
+            return;
+        }
+        const ms = Math.abs(diff);
+        const h = Math.floor(ms / 3600000);
+        const m = Math.floor((ms % 3600000) / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        const str = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        document.getElementById('elapsed').textContent = str;
+        document.getElementById('elapsed-label').textContent = diff < 0 ? 'До старта' : 'Прошло';
+    }
+    setInterval(updateElapsed, 1000);
+    updateElapsed();
+
+    function fmtMs(ms) {
+        if (!ms) return '—';
+        const s = Math.floor(ms / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const ss = s % 60;
+        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    }
+
+    function lapSpeed(lapMs) {
+        if (!lapMs) return '—';
+        return (LAP_KM / (lapMs / 3600000)).toFixed(1) + ' км/ч';
+    }
+
+    // MM:SS для времён кругов (без часов если < 60 мин)
+    function fmtLapMs(ms) {
+        if (!ms) return '—';
+        const s = Math.floor(ms / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const ss = s % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+        return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    }
+
+    // Знаковое отклонение от среднего в формате ±MM:SS
+    function fmtDeltaMs(deltaMs) {
+        const sign = deltaMs < 0 ? '−' : '+';
+        const abs = Math.abs(deltaMs);
+        const s = Math.floor(abs / 1000);
+        const m = Math.floor(s / 60);
+        const ss = s % 60;
+        return `${sign}${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    }
+
+    // Агрегат по участникам за диапазон кругов [from, to] включительно
+    // Возвращает Map<participant_id, { laps: [], best, worst, avg, spread }>
+    function aggregateForRange(from, to) {
+        const result = new Map();
+        for (const lap of allLaps) {
+            if (!filteredPids.has(lap.participant_id)) continue;
+            if (lap.lap_number < from || lap.lap_number > to) continue;
+            if (!result.has(lap.participant_id)) {
+                result.set(lap.participant_id, { laps: [], best: Infinity, worst: 0, sumMs: 0 });
+            }
+            const agg = result.get(lap.participant_id);
+            agg.laps.push(lap);
+            if (lap.lap_ms > 0 && lap.lap_ms < agg.best) agg.best = lap.lap_ms;
+            if (lap.lap_ms > agg.worst) agg.worst = lap.lap_ms;
+            agg.sumMs += lap.lap_ms;
+        }
+        // Финализируем: avg, spread
+        for (const [, agg] of result) {
+            const validLaps = agg.laps.filter(l => l.lap_ms > 0);
+            agg.best   = validLaps.length ? agg.best : 0;
+            agg.avg    = validLaps.length ? Math.round(agg.sumMs / validLaps.length) : 0;
+            agg.spread = agg.best && agg.worst ? agg.worst - agg.best : 0;
+            agg.laps.sort((a, b) => a.lap_number - b.lap_number);
+        }
+        return result;
+    }
+
+    function toggleLapsRow(pid) {
+        if (openLapsRows.has(pid)) {
+            openLapsRows.delete(pid);
+        } else {
+            openLapsRows.add(pid);
+        }
+        renderLapsTable();
+    }
+
+    function renderLapsTable() {
+        const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        if (document.getElementById('tab-laps').style.display === 'none') return;
+        const from = lapsRangeFrom;
+        const to   = lapsRangeTo;
+        const aggMap = aggregateForRange(from, to);
+
+        // Обновляем мета-строку под слайдером
+        const lapCount = to - from + 1;
+        const km = (lapCount * LAP_KM).toFixed(1);
+        // Период: cumulative лучшего участника в диапазоне
+        let periodMs = 0;
+        let maxLapsInRange = 0;
+        for (const [, agg] of aggMap) {
+            if (agg.laps.length > maxLapsInRange) {
+                maxLapsInRange = agg.laps.length;
+                const lastLap = agg.laps[agg.laps.length - 1];
+                const firstLap = agg.laps[0];
+                if (lastLap && firstLap) {
+                    const prevCumulative = firstLap.cumulative_ms - firstLap.lap_ms;
+                    periodMs = lastLap.cumulative_ms - prevCumulative;
+                }
+            }
+        }
+        const periodStr = periodMs > 0 ? `· период ${fmtMs(periodMs)}` : '';
+        document.getElementById('laps-slider-meta').textContent =
+            `Показано ${lapCount} кругов · ${km} км ${periodStr}`;
+
+        // Сортировка: по лучшему кругу ASC, DNF в конце
+        const standingsMap = Object.fromEntries(allStandings.map(r => [r.id, r]));
+        const rows = [];
+        for (const [pid, agg] of aggMap) {
+            const st = standingsMap[pid];
+            if (!st) continue;
+            rows.push({ pid, agg, st });
+        }
+        const maxLap = parseInt(document.getElementById('laps-to-slider').max) || 0;
+        const isFullRange = lapsRangeFrom === 1 && lapsRangeTo >= maxLap;
+        const isDnf = r => r.st.status === 'finished' || r.st.laps_completed === 0;
+        rows.sort((a, b) => {
+            const aDnf = isDnf(a), bDnf = isDnf(b);
+            if (aDnf !== bDnf) return aDnf ? 1 : -1;
+            const getKey = r => isFullRange && r.st.best_lap_ms > 0
+                ? r.st.best_lap_ms
+                : (r.agg.best || Infinity);
+            const diff = getKey(a) - getKey(b);
+            if (diff !== 0) return diff;
+            return (a.st.rank || 999) - (b.st.rank || 999);
+        });
+
+        // Рендер
+        let rank = 0;
+        const body = document.getElementById('laps-body');
+        if (!rows.length) {
+            body.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--tri-muted);padding:24px">Нет данных за выбранный диапазон</td></tr>';
+            return;
+        }
+        body.innerHTML = rows.map(({ pid, agg, st }) => {
+            const dnf = isDnf({ st });
+            rank++;
+            const nameLabel = st.gender === 'mixed' ? esc(st.surname) : `${esc(st.surname)} ${esc(st.name)}`;
+            const dnfBadge = dnf ? '<br><span class="tri-dnf-badge">Финишировал</span>' : '';
+            const isOpen = openLapsRows.has(pid);
+            const rowClass = `tri-laps-summary-row`;
+
+            const summaryRow = `
+            <tr class="${rowClass}" onclick="toggleLapsRow(${pid})" style="cursor:pointer">
+                <td class="tri-rank">${rank}</td>
+                <td class="tri-bib">${esc(st.start_number)}</td>
+                <td><span class="tri-name">${nameLabel}</span>${dnfBadge}</td>
+                <td>${agg.laps.length}</td>
+                <td class="tri-laps-best">${agg.best ? fmtLapMs(agg.best) : '—'}</td>
+                <td class="tri-laps-worst">${agg.worst ? fmtLapMs(agg.worst) : '—'}</td>
+                <td>${agg.avg ? fmtLapMs(agg.avg) : '—'}</td>
+                <td>${agg.spread ? '±' + fmtLapMs(agg.spread) : '—'}</td>
+                <td><span class="tri-laps-expand${isOpen ? ' open' : ''}">▶</span></td>
+            </tr>`;
+
+            if (!isOpen) return summaryRow;
+
+            // Детальные строки кругов
+            const detailRows = agg.laps.map(lap => {
+                const isBest = lap.lap_ms === agg.best && agg.best > 0;
+                const delta = agg.avg ? lap.lap_ms - agg.avg : 0;
+                const deltaClass = delta <= 0 ? 'tri-laps-delta-pos' : 'tri-laps-delta-neg';
+                const deltaStr = agg.avg ? fmtDeltaMs(delta) : '—';
+                const speed = lap.lap_ms > 0 ? (LAP_KM / (lap.lap_ms / 3600000)).toFixed(1) + ' км/ч' : '—';
+                return `
+                <tr>
+                    <td>${lap.lap_number}</td>
+                    <td class="${isBest ? 'tri-laps-best' : ''}">${fmtLapMs(lap.lap_ms)}${isBest ? ' <span class="tri-laps-star">★</span>' : ''}</td>
+                    <td>${speed}</td>
+                    <td class="${deltaClass}">${deltaStr}</td>
+                    <td>${fmtMs(lap.cumulative_ms)}</td>
+                </tr>`;
+            }).join('');
+
+            return summaryRow + `
+            <tr class="tri-laps-detail-row">
+                <td colspan="9">
+                    <div class="tri-laps-detail-inner">
+                        <table class="tri-laps-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>Круг</th><th>Время</th><th>Скорость</th>
+                                    <th>±от среднего</th><th>Нарастающее</th>
+                                </tr>
+                            </thead>
+                            <tbody>${detailRows}</tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function switchLapTab(btn, showId) {
+        btn.parentElement.querySelectorAll('.tri-detail-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        btn.closest('td').querySelectorAll('.tri-detail-inner').forEach(t => t.style.display = 'none');
+        const panel = document.getElementById(showId);
+        if (showId.startsWith('relay-')) {
+            const pid = parseInt(showId.replace('relay-', ''));
+            const rowData = allStandings.find(r => r.id === pid);
+            if (rowData) panel.innerHTML = relayStageHtml(rowData);
+        }
+        panel.style.display = '';
+    }
+
+    const STAGE_BOUNDARY_MS = 12 * 3600 * 1000; // 12 часов — граница смен эстафеты
+
+    function relayStageHtml(r) {
+        const names = r.name.split(', ');
+        const pLaps = allLaps.filter(l => l.participant_id === r.id);
+        const s1 = pLaps.filter(l => l.cumulative_ms <= STAGE_BOUNDARY_MS);
+        const s2 = pLaps.filter(l => l.cumulative_ms > STAGE_BOUNDARY_MS);
+
+        const stageInfo = (laps, baseMs) => {
+            if (!laps.length) return null;
+            const count = laps.length;
+            const lapsMs = laps.map(l => l.lap_ms).filter(ms => ms > 0);
+            const bestMs = lapsMs.length ? Math.min(...lapsMs) : 0;
+            const elapsed = Math.max(...laps.map(l => l.cumulative_ms)) - baseMs;
+            const speed = elapsed > 0 ? (count * LAP_KM / (elapsed / 3600000)).toFixed(1) : '—';
+            return { count, km: (count * LAP_KM).toFixed(2), best: bestMs > 0 ? fmtMs(bestMs) : '—', speed };
+        };
+
+        const st1 = stageInfo(s1, 0);
+        const st2 = stageInfo(s2, STAGE_BOUNDARY_MS);
+
+        const block = (title, name, st) => {
+            const items = st ? `
+                <div class="tri-detail-item"><span class="tri-detail-label">Кругов</span><span class="tri-detail-value">${st.count}</span></div>
+                <div class="tri-detail-item"><span class="tri-detail-label">Расстояние</span><span class="tri-detail-value">${st.km} км</span></div>
+                <div class="tri-detail-item"><span class="tri-detail-label">Лучший круг</span><span class="tri-detail-value" style="font-variant-numeric:tabular-nums">${st.best}</span></div>
+                <div class="tri-detail-item"><span class="tri-detail-label">Ср. скорость</span><span class="tri-detail-value">${st.speed} км/ч</span></div>`
+                : `<div class="tri-detail-item" style="grid-column:1/-1"><span class="tri-detail-label">Нет данных</span><span class="tri-detail-value">—</span></div>`;
+            return `<div class="tri-relay-block">
+                <div class="tri-relay-participant-name">${title} · ${name}</div>
+                ${items}
+            </div>`;
+        };
+
+        return `<div class="tri-relay-stages">
+            ${block('1-я смена', names[0] || '?', st1)}
+            ${block('2-я смена', names[1] || '?', st2)}
+        </div>`;
+    }
+
+    async function loadStandings() {
+        try {
+            const r = await fetch('/api/tri/standings');
+            const data = await r.json();
+            allStandings = data.standings || [];
+            updateSliderMax();
+            applyFilters();
+            document.getElementById('refresh-label').textContent =
+                `Обновлено: ${new Date().toLocaleTimeString('ru-RU')}`;
+        } catch(e) { console.error('standings error', e); }
+    }
+
+    function calculateGap(aLaps, aMs, leaderLaps, leaderMs) {
+        if (aLaps < leaderLaps) {
+            const diff = leaderLaps - aLaps;
+            if (diff === 1) return '−1 круг';
+            if (diff >= 2 && diff <= 4) return `−${diff} круга`;
+            return `−${diff} кругов`;
+        }
+        const deltaMs = aMs - leaderMs;
+        if (deltaMs <= 0) return '—';
+        const s = Math.floor(deltaMs / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const ss = s % 60;
+        return `+${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+    }
+
+    function applyFilters() {
+        const category = document.getElementById('filter-category').value;
+        const genderEl = document.getElementById('filter-gender');
+        localStorage.setItem('tri_filter_category', category);
+        localStorage.setItem('tri_filter_gender', genderEl.value);
+
+        // Когда выбрана «Эстафета» — сбрасываем и блокируем фильтр пола
+        if (category === 'Эстафета') {
+            genderEl.value = '';
+            genderEl.disabled = true;
+        } else {
+            genderEl.disabled = false;
+        }
+
+        const gender = genderEl.value;
+        const search = document.getElementById('filter-search').value.trim().toLowerCase();
+
+        let rows = allStandings.filter(r => {
+            if (category === 'personal'  && r.category === 'Эстафета') return false;
+            if (category === 'Эстафета'  && r.category !== 'Эстафета') return false;
+            // При выборе пола эстафеты не показываем (gender='mixed' != 'Мужчина'/'Женщина')
+            if (gender && r.gender !== gender) return false;
+            if (search && !(r.surname || '').toLowerCase().includes(search)) return false;
+            return true;
+        });
+
+        // Пересчитываем место и отставание от лидера отфильтрованной выборки
+        if (rows.length > 0) {
+            const leader = rows[0];
+            // Пачечный ранг: участники в ±3 сек с одинаковым числом кругов → одно место
+            const ranked = [];
+            for (let i = 0; i < rows.length; i++) {
+                let rank;
+                if (i === 0) {
+                    rank = 1;
+                } else {
+                    const prev = ranked[i - 1];
+                    const sameLaps = rows[i].laps_completed === rows[i - 1].laps_completed;
+                    const inPack = sameLaps && Math.abs(rows[i].elapsed_ms - rows[i - 1].elapsed_ms) <= 3000;
+                    rank = inPack ? prev.rank : i + 1;
+                }
+                ranked.push({
+                    ...rows[i],
+                    rank,
+                    gap: i === 0 ? '—' : calculateGap(
+                        rows[i].laps_completed, rows[i].elapsed_ms,
+                        leader.laps_completed, leader.elapsed_ms
+                    ),
+                });
+            }
+            rows = ranked;
+        }
+
+        document.getElementById('results-count').textContent =
+            rows.length ? `${rows.length} участн.` : '';
+
+        filteredPids = new Set(rows.map(r => r.id));
+        selectedChartPids = new Set([...selectedChartPids].filter(pid => filteredPids.has(pid)));
+        if (isMobile() && selectedChartPids.size === 0 && rows.length > 0) {
+            rows.slice().sort((a, b) => b.laps_completed - a.laps_completed)
+                .slice(0, 3).forEach(r => selectedChartPids.add(r.id));
+        }
+        renderStandings(rows);
+        renderSplits();
+        if (document.getElementById('tab-chart').style.display !== 'none') {
+            _renderActiveChart();
+        }
+        if (document.getElementById('tab-laps').style.display !== 'none') {
+            renderLapsTable();
+        }
+        _syncMobileChart();
+    }
+
+    function switchPageTab(name, btn) {
+        document.querySelectorAll('.tri-page-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-distance').style.display = name === 'distance' ? '' : 'none';
+        document.getElementById('tab-segments').style.display = name === 'segments' ? '' : 'none';
+        document.getElementById('tab-chart').style.display    = name === 'chart'    ? '' : 'none';
+        document.getElementById('tab-laps').style.display     = name === 'laps'     ? '' : 'none';
+        document.getElementById('filter-search').closest('.tri-filter-group').style.display =
+            name === 'chart' ? 'none' : '';
+        localStorage.setItem('tri_tab', name);
+        if (name === 'segments') renderSplits();
+        if (name === 'laps') renderLapsTable();
+        if (name === 'chart') {
+            if (isMobile() && selectedChartPids.size === 0) {
+                allStandings
+                    .filter(r => filteredPids.has(r.id))
+                    .slice()
+                    .sort((a, b) => b.laps_completed - a.laps_completed)
+                    .slice(0, 3)
+                    .forEach(r => selectedChartPids.add(r.id));
+            }
+            if (isMobile() && activeChartType === 'speed') {
+                activeChartType = 'distance';
+                document.querySelectorAll('.tri-chart-subtab').forEach(b => {
+                    b.classList.toggle('active', b.dataset.type === 'distance');
+                });
+                document.getElementById('chart-speed-wrap').style.display    = 'none';
+                document.getElementById('chart-distance-wrap').style.display = '';
+            }
+            requestAnimationFrame(() => {
+                if (activeChartType === 'speed') renderChart();
+                else if (activeChartType === 'distance') renderDistanceChart();
+                else renderPositionChart();
+            });
+        }
+    }
+
+    // Показываем список участников из standings когда ещё нет кругов
+    function renderChartPlaceholder() {
+        const legendList = document.getElementById('chart-legend-list');
+        const filtered = allStandings.filter(p => filteredPids.has(p.id));
+        legendList.innerHTML = filtered.map((p, i) => {
+            const color = CHART_COLORS[i % CHART_COLORS.length];
+            return `<div class="tri-chart-legend-item" style="opacity:0.45;cursor:default">
+                <span class="tri-chart-legend-dot" style="background:${color}"></span>
+                <span>${p.surname} ${p.name}</span>
+            </div>`;
+        }).join('');
+
+        const placeholder = `<div style="display:flex;align-items:center;justify-content:center;
+            height:100%;color:var(--tri-muted);font-size:14px;text-align:center;padding:24px">
+            Данные появятся<br>после старта гонки</div>`;
+        document.getElementById('chart-speed-wrap').innerHTML =
+            `<canvas id="tri-chart" style="display:none"></canvas>${placeholder}`;
+        document.getElementById('chart-distance-wrap').innerHTML =
+            `<canvas id="tri-chart-distance" style="display:none"></canvas>${placeholder}`;
+        document.getElementById('chart-position-wrap').innerHTML =
+            `<canvas id="tri-chart-position" style="display:none"></canvas>${placeholder}`;
+        if (triChart) { triChart.destroy(); triChart = null; }
+        if (triChartDistance) { triChartDistance.destroy(); triChartDistance = null; }
+        if (triChartPosition) { triChartPosition.destroy(); triChartPosition = null; }
+    }
+
+    function renderChart() {
+        if (!allLaps.length) { renderChartPlaceholder(); return; }
+        if (triChart?.width === 0) { triChart.destroy(); triChart = null; }
+
+        const WIN = 0.5; // окно 30 минут
+
+        // Группируем круги по участнику
+        const byPid = {};
+        for (const lap of allLaps) {
+            if (!filteredPids.has(lap.participant_id)) continue;
+            const pid = lap.participant_id;
+            if (!byPid[pid]) byPid[pid] = { pid, surname: lap.surname, name: lap.name, laps: [] };
+            byPid[pid].laps.push(lap.cumulative_ms / 3600000); // часы от выстрела
+        }
+
+        const participants = Object.values(byPid).sort((a, b) => a.surname.localeCompare(b.surname));
+
+        // Обновляем боковой список участников
+        const legendList = document.getElementById('chart-legend-list');
+        legendList.innerHTML = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isActive = selectedChartPids.has(p.pid);
+            return `<div class="tri-chart-legend-item${isActive ? ' active' : ''}"
+                         data-pid="${p.pid}" onclick="toggleChartPid(${p.pid})">
+                <span class="tri-chart-legend-dot" style="background:${color}"></span>
+                <span>${_participantLabel(p.pid, p.surname, p.name)}</span>
+            </div>`;
+        }).join('');
+
+        const hasSelection = selectedChartPids.size > 0;
+        chartDatasetPids = participants.map(p => p.pid);
+
+        const datasets = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isSelected = hasSelection && selectedChartPids.has(p.pid);
+
+            const maxH = p.laps.length ? Math.max(...p.laps) : 0;
+            const data = [];
+            for (let w = WIN; w <= Math.ceil(maxH / WIN) * WIN; w += WIN) {
+                const from = w - WIN, to = w;
+                const count = p.laps.filter(h => h > from && h <= to).length;
+                const totalLaps = p.laps.filter(h => h <= to).length;
+                if (count > 0) {
+                    data.push({ x: parseFloat(w.toFixed(1)), y: parseFloat((count * LAP_KM / WIN).toFixed(2)), totalKm: totalLaps * LAP_KM });
+                }
+            }
+
+            // По умолчанию: серый. Выбранный: цветной. Невыбранный при активной выборке: бледный серый (ещё бледнее на мобильном)
+            let lineColor, lineWidth, endRadius;
+            if (!hasSelection) {
+                lineColor = '#c8c8c8'; endRadius = 3; lineWidth = 1.5;
+            } else if (isSelected) {
+                lineColor = color; endRadius = 6; lineWidth = isMobile() ? 3 : 2.5;
+            } else {
+                lineColor = isMobile() ? 'rgba(0,0,0,0.07)' : '#e0e0e0';
+                endRadius = 0; lineWidth = 1;
+            }
+
+            const radii      = data.map((_, j) => j === data.length - 1 ? endRadius : 0);
+            const hoverRadii = data.map((_, j) => j === data.length - 1 ? endRadius + 2 : 4);
+
+            return {
+                label: _participantLabel(p.pid, p.surname, p.name),
+                _color: color,
+                _isSelected: isSelected,
+                data,
+                borderColor: lineColor,
+                backgroundColor: lineColor,
+                borderWidth: lineWidth,
+                pointStyle: 'circle',
+                pointRadius: radii,
+                pointHoverRadius: hoverRadii,
+                tension: 0.3,
+                spanGaps: true,
+            };
+        });
+
+        // Восстанавливаем canvas если placeholder был показан (canvas мог быть скрыт)
+        if (!triChart) {
+            document.getElementById('chart-speed-wrap').innerHTML = '<canvas id="tri-chart"></canvas>';
+        }
+        const ctx = document.getElementById('tri-chart').getContext('2d');
+
+        // Плагин: плашка с фамилией у последней точки выбранного участника
+        const labelPlugin = {
+            id: 'lastLabel',
+            afterDatasetsDraw(chart) {
+                if (isMobile()) return;
+                const c = chart.ctx;
+                chart.data.datasets.forEach((ds, i) => {
+                    if (!ds._isSelected) return;
+                    const meta = chart.getDatasetMeta(i);
+                    const pts = meta.data;
+                    if (!pts.length) return;
+
+                    // Плашка с фамилией
+                    const last = pts[pts.length - 1];
+                    const { x, y } = last.getProps(['x', 'y'], true);
+                    const text = ds.label.split(' ')[0];
+                    c.save();
+                    c.font = 'bold 11px Onest, Arial, sans-serif';
+                    const tw = c.measureText(text).width;
+                    const pw = tw + 12, ph = 18, px = x + 10, py = y - ph / 2;
+                    c.fillStyle = ds._color;
+                    c.beginPath();
+                    c.roundRect ? c.roundRect(px, py, pw, ph, 4) : c.rect(px, py, pw, ph);
+                    c.fill();
+                    c.fillStyle = '#fff';
+                    c.textAlign = 'left';
+                    c.textBaseline = 'middle';
+                    c.fillText(text, px + 6, y);
+                    c.restore();
+                });
+            }
+        };
+
+        const xMax = _chartXMax();
+        if (triChart) {
+            triChart.data.datasets = datasets;
+            triChart.options.scales.x.max = xMax;
+            triChart.update('none');
+        } else {
+            triChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                plugins: [labelPlugin],
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    layout: { padding: { right: isMobile() ? 0 : 160 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: !isMobile(),
+                            external: _mobileInfoExternal,
+                            filter(item) {
+                                if (selectedChartPids.size === 0) return false;
+                                const pid = chartDatasetPids[item.datasetIndex];
+                                return selectedChartPids.has(pid);
+                            },
+                            itemSort(a, b) { return b.parsed.y - a.parsed.y; },
+                            callbacks: {
+                                title(items) {
+                                    const h = items[0].parsed.x;
+                                    return `${(h - WIN).toFixed(1)}–${h.toFixed(1)} ч от старта`;
+                                },
+                                label(item) {
+                                    const spd = item.parsed.y;
+                                    const km  = item.raw.totalKm ?? 0;
+                                    return ` ${item.dataset.label}: ${spd.toFixed(1)} км/ч · ${km.toFixed(1)} км`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: xMax,
+                            ticks: {
+                                callback(val) { return val > 0 && Number.isInteger(val) ? `${val}ч` : ''; },
+                                maxTicksLimit: 7,
+                                font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Скорость, км/ч (за 30 мин)', font: { size: 12 } },
+                            min: 0,
+                            ticks: { font: { size: 11 } },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+        _syncMobileChart();
+
+        document.getElementById('chart-refresh-label').textContent =
+            `Обновлено: ${new Date().toLocaleTimeString('ru-RU')}`;
+    }
+
+    function renderDistanceChart() {
+        if (!allLaps.length) { renderChartPlaceholder(); return; }
+        if (triChartDistance?.width === 0) { triChartDistance.destroy(); triChartDistance = null; }
+
+        const byPid = {};
+        for (const lap of allLaps) {
+            if (!filteredPids.has(lap.participant_id)) continue;
+            const pid = lap.participant_id;
+            if (!byPid[pid]) byPid[pid] = { pid, surname: lap.surname, name: lap.name, points: [{ x: 0, y: 0 }] };
+            byPid[pid].points.push({
+                x: parseFloat((lap.cumulative_ms / 3600000).toFixed(3)),
+                y: parseFloat((lap.lap_number * LAP_KM).toFixed(3))
+            });
+        }
+
+        const participants = Object.values(byPid).sort((a, b) => a.surname.localeCompare(b.surname));
+        chartDatasetPids = participants.map(p => p.pid);
+
+        const legendList = document.getElementById('chart-legend-list');
+        legendList.innerHTML = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isActive = selectedChartPids.has(p.pid);
+            return `<div class="tri-chart-legend-item${isActive ? ' active' : ''}"
+                         data-pid="${p.pid}" onclick="toggleChartPid(${p.pid})">
+                <span class="tri-chart-legend-dot" style="background:${color}"></span>
+                <span>${_participantLabel(p.pid, p.surname, p.name)}</span>
+            </div>`;
+        }).join('');
+
+        const hasSelection = selectedChartPids.size > 0;
+
+        const datasets = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isSelected = hasSelection && selectedChartPids.has(p.pid);
+
+            let lineColor, lineWidth;
+            if (!hasSelection) {
+                lineColor = '#c8c8c8'; lineWidth = 1.5;
+            } else if (isSelected) {
+                lineColor = color; lineWidth = isMobile() ? 3 : 2.5;
+            } else {
+                lineColor = isMobile() ? 'rgba(0,0,0,0.07)' : '#e0e0e0';
+                lineWidth = 1;
+            }
+
+            return {
+                label: _participantLabel(p.pid, p.surname, p.name),
+                _color: color,
+                _isSelected: isSelected,
+                data: p.points,
+                borderColor: lineColor,
+                backgroundColor: lineColor,
+                borderWidth: lineWidth,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0,
+                spanGaps: true,
+            };
+        });
+
+        if (!triChartDistance) {
+            document.getElementById('chart-distance-wrap').innerHTML = '<canvas id="tri-chart-distance"></canvas>';
+        }
+        const ctx = document.getElementById('tri-chart-distance').getContext('2d');
+
+        const xMax = _chartXMax();
+        if (triChartDistance) {
+            triChartDistance.data.datasets = datasets;
+            triChartDistance.options.scales.x.max = xMax;
+            triChartDistance.update('none');
+        } else {
+            triChartDistance = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: !isMobile(),
+                            external: _mobileInfoExternal,
+                            filter(item) {
+                                if (selectedChartPids.size === 0) return false;
+                                const pid = chartDatasetPids[item.datasetIndex];
+                                return selectedChartPids.has(pid);
+                            },
+                            itemSort(a, b) { return b.parsed.y - a.parsed.y; },
+                            callbacks: {
+                                title(items) {
+                                    const h = items[0].parsed.x;
+                                    return `${h.toFixed(1)} ч от старта`;
+                                },
+                                label(item) {
+                                    return ` ${item.dataset.label}: ${item.parsed.y.toFixed(1)} км`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: xMax,
+                            ticks: {
+                                callback(val) { return val > 0 && Number.isInteger(val) ? `${val}ч` : ''; },
+                                maxTicksLimit: 7,
+                                font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        },
+                        y: {
+                            title: { display: true, text: 'Дистанция, км', font: { size: 12 } },
+                            min: 0,
+                            ticks: { font: { size: 11 } },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+        _syncMobileChart();
+
+        document.getElementById('chart-refresh-label').textContent =
+            `Обновлено: ${new Date().toLocaleTimeString('ru-RU')}`;
+    }
+
+    function renderPositionChart() {
+        if (!allLaps.length) { renderChartPlaceholder(); return; }
+        if (triChartPosition?.width === 0) { triChartPosition.destroy(); triChartPosition = null; }
+
+        const WIN = 0.5;
+
+        // Строим по участнику: лапы (часы) для фильтрованных
+        const byPid = {};
+        for (const lap of allLaps) {
+            if (!filteredPids.has(lap.participant_id)) continue;
+            const pid = lap.participant_id;
+            if (!byPid[pid]) byPid[pid] = { pid, surname: lap.surname, name: lap.name, laps: [] };
+            byPid[pid].laps.push({ h: lap.cumulative_ms / 3600000, km: lap.lap_number * LAP_KM, ms: lap.cumulative_ms });
+        }
+
+        const participants = Object.values(byPid).sort((a, b) => a.surname.localeCompare(b.surname));
+        if (!participants.length) { renderChartPlaceholder(); return; }
+        chartDatasetPids = participants.map(p => p.pid);
+
+        // Статусы участников для определения DNF
+        const DNF_ST = ['withdrawn', 'abandoned', 'dnf', 'retired', 'finished'];
+        const statusMap = {};
+        for (const s of allStandings) statusMap[s.id] = (s.status || '').toLowerCase();
+        const isDnfPid = pid => DNF_ST.includes(statusMap[pid] || '');
+
+        // Обновляем боковой список (shared с speed chart)
+        const legendList = document.getElementById('chart-legend-list');
+        legendList.innerHTML = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isActive = selectedChartPids.has(p.pid);
+            const dnfLabel = isDnfPid(p.pid) ? ' | Финишировал' : '';
+            return `<div class="tri-chart-legend-item${isActive ? ' active' : ''}"
+                         data-pid="${p.pid}" onclick="toggleChartPid(${p.pid})">
+                <span class="tri-chart-legend-dot" style="background:${color}"></span>
+                <span>${_participantLabel(p.pid, p.surname, p.name)}${dnfLabel}</span>
+            </div>`;
+        }).join('');
+
+        const hasSelection = selectedChartPids.size > 0;
+
+        const maxH = Math.max(...participants.flatMap(p => p.laps.map(l => l.h)));
+
+        const windows = [];
+        for (let w = WIN; w <= Math.ceil(maxH / WIN) * WIN + WIN / 2; w += WIN) {
+            windows.push(parseFloat(w.toFixed(1)));
+        }
+
+        const datasets = participants.map(p => {
+            const color = _getColorForPid(p.pid);
+            const isSelected = hasSelection && selectedChartPids.has(p.pid);
+            const dnf = isDnfPid(p.pid);
+            const lastLapH = p.laps.length ? Math.max(...p.laps.map(l => l.h)) : 0;
+
+            // DNF-участники: окна только до их последнего круга
+            const activeWindows = dnf ? windows.filter(w => w <= lastLapH + WIN / 2) : windows;
+
+            const data = activeWindows.map(w => {
+                // Круги участника к моменту w
+                const completed = p.laps.filter(l => l.h <= w);
+                const lapCount = completed.length;
+                const lastMs = lapCount ? Math.max(...completed.map(l => l.ms)) : 0;
+                const totalKm = lapCount * LAP_KM;
+                const avgSpeed = lastMs > 0 ? (totalKm / (lastMs / 3600000)).toFixed(1) : 0;
+
+                // Ранг среди всех участников в этот момент
+                const allAtW = participants.map(pp => {
+                    const c = pp.laps.filter(l => l.h <= w);
+                    return { pid: pp.pid, laps: c.length, ms: c.length ? Math.max(...c.map(l => l.ms)) : 0 };
+                }).sort((a, b) => b.laps !== a.laps ? b.laps - a.laps : a.ms - b.ms);
+
+                const rank = allAtW.findIndex(r => r.pid === p.pid) + 1;
+                return { x: w, y: rank, totalKm: parseFloat(totalKm.toFixed(1)), avgSpeed };
+            });
+
+            let lineColor, lineWidth, endRadius;
+            if (!hasSelection)   { lineColor = '#c8c8c8'; endRadius = 3; lineWidth = 1.5; }
+            else if (isSelected) { lineColor = color; endRadius = 6; lineWidth = isMobile() ? 3 : 2.5; }
+            else                 { lineColor = isMobile() ? 'rgba(0,0,0,0.07)' : '#e0e0e0'; endRadius = 0; lineWidth = 1; }
+
+            const radii = data.map((_, j) => j === data.length - 1 ? endRadius : 0);
+
+            const label = dnf
+                ? `${_participantLabel(p.pid, p.surname, p.name)} | Финишировал`
+                : _participantLabel(p.pid, p.surname, p.name);
+
+            return {
+                label,
+                _color: color, _isSelected: isSelected, _isDnf: dnf,
+                data, borderColor: lineColor, backgroundColor: lineColor,
+                borderWidth: lineWidth, pointStyle: 'circle',
+                pointRadius: radii, pointHoverRadius: radii.map(r => r ? r + 2 : 4),
+                tension: 0.3, spanGaps: true,
+            };
+        });
+
+        if (!triChartPosition) {
+            document.getElementById('chart-position-wrap').innerHTML = '<canvas id="tri-chart-position"></canvas>';
+        }
+        const ctx = document.getElementById('tri-chart-position').getContext('2d');
+        const totalParticipants = participants.length;
+
+        // Плагин плашки
+        const labelPluginPos = {
+            id: 'lastLabelPos',
+            afterDatasetsDraw(chart) {
+                if (isMobile()) return;
+                const c = chart.ctx;
+                chart.data.datasets.forEach((ds, i) => {
+                    if (!ds._isSelected) return;
+                    const meta = chart.getDatasetMeta(i);
+                    const pts = meta.data;
+                    if (!pts.length) return;
+                    const last = pts[pts.length - 1];
+                    const { x, y } = last.getProps(['x', 'y'], true);
+                    const text = ds._isDnf
+                        ? ds.label.split(' ')[0] + ' | Финишировал'
+                        : ds.label.split(' ')[0];
+                    c.save();
+                    c.font = 'bold 11px Onest, Arial, sans-serif';
+                    const tw = c.measureText(text).width;
+                    const pw = tw + 12, ph = 18, px = x + 10, py = y - ph / 2;
+                    c.fillStyle = ds._color;
+                    c.beginPath();
+                    c.roundRect ? c.roundRect(px, py, pw, ph, 4) : c.rect(px, py, pw, ph);
+                    c.fill();
+                    c.fillStyle = '#fff';
+                    c.textAlign = 'left'; c.textBaseline = 'middle';
+                    c.fillText(text, px + 6, y);
+                    c.restore();
+                });
+            }
+        };
+
+        const xMax = _chartXMax();
+        if (triChartPosition) {
+            triChartPosition.data.datasets = datasets;
+            triChartPosition.options.scales.x.max = xMax;
+            triChartPosition.update('none');
+        } else {
+            triChartPosition = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                plugins: [labelPluginPos],
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { right: isMobile() ? 0 : 160 } },
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: !isMobile(),
+                            external: _mobileInfoExternal,
+                            filter(item) {
+                                if (selectedChartPids.size === 0) return false;
+                                const pid = chartDatasetPids[item.datasetIndex];
+                                return selectedChartPids.has(pid);
+                            },
+                            itemSort(a, b) { return a.parsed.y - b.parsed.y; }, // 1-й сверху
+                            callbacks: {
+                                title(items) {
+                                    const h = items[0].parsed.x;
+                                    return `${(h - WIN).toFixed(1)}–${h.toFixed(1)} ч от старта`;
+                                },
+                                label(item) {
+                                    const rank = item.parsed.y;
+                                    const km   = item.raw.totalKm ?? 0;
+                                    const spd  = item.raw.avgSpeed ?? 0;
+                                    return ` #${rank} ${item.dataset.label}: ${km} км · ${spd} км/ч`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear', min: 0, max: xMax,
+                            ticks: {
+                                callback(val) { return val > 0 && Number.isInteger(val) ? `${val}ч` : ''; },
+                                maxTicksLimit: 7, font: { size: 11 }
+                            },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        },
+                        y: {
+                            reverse: true, // 1-е место сверху
+                            min: 0.5,
+                            max: totalParticipants + 0.5,
+                            afterBuildTicks(scale) {
+                                scale.ticks = Array.from({ length: totalParticipants }, (_, i) => ({ value: i + 1 }));
+                            },
+                            ticks: {
+                                callback(val) { return Number.isInteger(val) ? `${val}` : null; },
+                                font: { size: 11 }
+                            },
+                            title: { display: true, text: 'Место', font: { size: 12 } },
+                            grid: { color: 'rgba(0,0,0,0.06)' }
+                        }
+                    }
+                }
+            });
+        }
+        _syncMobileChart();
+
+        document.getElementById('chart-refresh-label').textContent =
+            `Обновлено: ${new Date().toLocaleTimeString('ru-RU')}`;
+    }
+
+
+    function renderStandings(rows) {
+        const tbody = document.getElementById('standings-body');
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--tri-muted);padding:24px">Нет данных</td></tr>';
+            return;
+        }
+
+        // Запоминаем открытые строки и активные вкладки до перерисовки
+        const openIds = new Set(
+            [...tbody.querySelectorAll('.tri-row-main.open')]
+                .map(tr => tr.id.replace('p-', ''))
+        );
+        const activeTabMap = {};
+        tbody.querySelectorAll('.tri-row-main.open').forEach(tr => {
+            const id = tr.id.replace('p-', '');
+            const activeBtn = tr.nextElementSibling?.querySelector('.tri-detail-tab.active');
+            if (activeBtn) {
+                const m = activeBtn.getAttribute('onclick').match(/'([^']+)'/);
+                if (m) activeTabMap[id] = m[1];
+            }
+        });
+        // Лидер по последнему кругу
+        const lastLapLeader = rows
+            .filter(r => r.laps_completed > 0 && r.last_lap_ms > 0)
+            .reduce((best, r) => (!best || r.last_lap_ms < best.last_lap_ms) ? r : best, null);
+        const bestLapMs = lastLapLeader ? lastLapLeader.last_lap_ms : 0;
+
+        // Лидер по лучшему кругу за всю гонку
+        const bestLapLeader = rows
+            .filter(r => r.best_lap_ms > 0)
+            .reduce((best, r) => (!best || r.best_lap_ms < best.best_lap_ms) ? r : best, null);
+        const bestOverallLapMs = bestLapLeader ? bestLapLeader.best_lap_ms : 0;
+
+        const bestBanner = document.getElementById('best-lap-banner');
+        if (bestBanner && bestLapLeader) {
+            const spd = (LAP_KM / (bestLapLeader.best_lap_ms / 3600000)).toFixed(1);
+            const lapNum = bestLapLeader.best_lap_number > 0 ? ` (круг №${bestLapLeader.best_lap_number})` : '';
+            bestBanner.textContent = `⚡ Лучший круг: ${bestLapLeader.surname} ${bestLapLeader.name}${lapNum} — ${fmtMs(bestLapLeader.best_lap_ms)} · ${spd} км/ч`;
+            bestBanner.style.display = '';
+        }
+
+        tbody.innerHTML = rows.map(r => {
+            const isRelay = r.category === 'Эстафета';
+            const badgeClass = isRelay ? 'tri-badge--relay' : 'tri-badge--personal';
+            const categoryLabel = isRelay ? 'Эстафета' : 'Личный';
+            const isDnf = r.status && ['withdrawn', 'abandoned', 'dnf', 'retired', 'finished'].includes((r.status || '').toLowerCase());
+
+            // Бейдж отставания в гонке
+            const gapBadge = r.gap === '—'
+                ? `<span class="tri-gap-badge tri-gap-badge--leader">Лидер</span>`
+                : `<span class="tri-gap-badge tri-gap-badge--behind">${r.gap}</span>`;
+
+            // Отставание на последнем круге + подсказка лидера
+            let lapGapHtml = '—';
+            if (r.laps_completed > 0 && r.last_lap_ms > 0 && lastLapLeader) {
+                const delta = r.last_lap_ms - lastLapLeader.last_lap_ms;
+                if (delta <= 0) {
+                    lapGapHtml = `<span class="tri-gap-badge tri-gap-badge--leader">Лидер</span>`;
+                } else {
+                    lapGapHtml = `<span class="tri-gap--behind">+${fmtMs(delta)}</span>
+                        <span class="tri-lap-gap-hint">лучший: ${lastLapLeader.surname}, ${fmtMs(lastLapLeader.last_lap_ms)}</span>`;
+                }
+            }
+
+            // Отставание на лучшем круге + подсказка лидера
+            let bestGapHtml = '—';
+            if (r.best_lap_ms > 0 && bestLapLeader) {
+                const delta = r.best_lap_ms - bestLapLeader.best_lap_ms;
+                if (delta <= 0) {
+                    bestGapHtml = `<span class="tri-gap-badge tri-gap-badge--leader">Лидер</span>`;
+                } else {
+                    bestGapHtml = `<span class="tri-gap--behind">+${fmtMs(delta)}</span>
+                        <span class="tri-lap-gap-hint">лучший: ${bestLapLeader.surname}, ${fmtMs(bestLapLeader.best_lap_ms)}</span>`;
+                }
+            }
+
+            return `
+            <tr id="p-${r.id}" class="tri-row-main" onclick="toggleDetail(this)">
+                <td class="tri-rank">${r.rank}</td>
+                <td class="tri-bib">${r.start_number}</td>
+                <td class="tri-name">${r.surname} ${r.name}<span class="tri-chevron">▼</span>${isDnf ? '<br><span class="tri-dnf-badge">Финишировал</span>' : ''}</td>
+                <td><span class="tri-badge ${badgeClass}">${categoryLabel}</span></td>
+                <td>${parseFloat(r.total_km).toFixed(1)}</td>
+                <td>${r.laps_completed}</td>
+                <td class="tri-speed">${parseFloat(r.avg_speed_kmh).toFixed(1)} км/ч</td>
+                <td>${gapBadge}</td>
+            </tr>
+            <tr class="tri-row-detail">
+                <td colspan="8">
+                    <div class="tri-detail-tabs">
+                        <button class="tri-detail-tab active" onclick="switchLapTab(this, 'last-${r.id}')">Последний круг</button>
+                        <button class="tri-detail-tab" onclick="switchLapTab(this, 'best-${r.id}')">Лучший круг</button>
+                        ${r.gender === 'mixed' ? `<button class="tri-detail-tab" onclick="switchLapTab(this, 'relay-${r.id}')">Участники</button>` : ''}
+                    </div>
+                    <div id="last-${r.id}" class="tri-detail-inner">
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Последний круг</span>
+                            <span class="tri-detail-value">${r.laps_completed > 0 ? `№${r.laps_completed}` : '—'}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Накопленное время</span>
+                            <span class="tri-detail-value" style="font-variant-numeric:tabular-nums">${fmtMs(r.elapsed_ms)}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Время круга</span>
+                            <span class="tri-detail-value" style="font-variant-numeric:tabular-nums">${fmtMs(r.last_lap_ms)}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Скорость круга</span>
+                            <span class="tri-detail-value">${lapSpeed(r.last_lap_ms)}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Отставание на круге</span>
+                            <span class="tri-detail-value">${lapGapHtml}</span>
+                        </div>
+                    </div>
+                    <div id="best-${r.id}" class="tri-detail-inner" style="display:none">
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Лучший круг</span>
+                            <span class="tri-detail-value">${r.best_lap_number > 0 ? `№${r.best_lap_number}` : '—'}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Время круга</span>
+                            <span class="tri-detail-value" style="font-variant-numeric:tabular-nums">${fmtMs(r.best_lap_ms)}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Скорость круга</span>
+                            <span class="tri-detail-value">${lapSpeed(r.best_lap_ms)}</span>
+                        </div>
+                        <div class="tri-detail-item">
+                            <span class="tri-detail-label">Отставание на круге</span>
+                            <span class="tri-detail-value">${bestGapHtml}</span>
+                        </div>
+                    </div>
+                    ${r.gender === 'mixed' ? `<div id="relay-${r.id}" class="tri-detail-inner tri-relay-inner" style="display:none"></div>` : ''}
+                </td>
+            </tr>`;
+        }).join('');
+
+        // Восстанавливаем открытые строки и активные вкладки
+        openIds.forEach(id => {
+            const mainRow = tbody.querySelector(`#p-${id}`);
+            if (!mainRow) return;
+            mainRow.classList.add('open');
+            mainRow.nextElementSibling?.classList.add('open');
+            const showId = activeTabMap[id];
+            if (showId) {
+                const btn = mainRow.nextElementSibling?.querySelector(`.tri-detail-tab[onclick*="'${showId}'"]`);
+                if (btn) switchLapTab(btn, showId);
+            }
+        });
+    }
+
+    function toggleDetail(mainRow) {
+        const detailRow = mainRow.nextElementSibling;
+        const isOpen = mainRow.classList.contains('open');
+        document.querySelectorAll('.tri-row-main.open').forEach(row => {
+            row.classList.remove('open');
+            row.nextElementSibling.classList.remove('open');
+        });
+        if (!isOpen) {
+            mainRow.classList.add('open');
+            detailRow.classList.add('open');
+        }
+    }
+
+    async function loadLaps() {
+        try {
+            const r = await fetch('/api/tri/laps');
+            const data = await r.json();
+            allLaps = data.laps || [];
+            updateSliderMax();
+            renderSplits();
+            updateLapsSliderMax();
+            if (document.getElementById('tab-laps').style.display !== 'none') {
+                renderLapsTable();
+            }
+            if (document.getElementById('tab-chart').style.display !== 'none') {
+                _renderActiveChart();
+            }
+        } catch(e) { console.error('laps error', e); }
+    }
+
+    function currentRaceH() {
+        if (_testRaceH > 0) return _testRaceH;
+        const elapsedMs = Date.now() - GUN_UTC_MS;
+        if (elapsedMs <= 0) return 1;
+        return Math.min(24, Math.max(1, Math.ceil(elapsedMs / 3600000)));
+    }
+
+    function updateSliderMax() {
+        const maxH = currentRaceH();
+        const toSlider   = document.getElementById('to-slider');
+        const fromSlider = document.getElementById('from-slider');
+        toSlider.max   = maxH;
+        fromSlider.max = maxH;
+        if (parseInt(toSlider.value) > maxH) {
+            toSlider.value = maxH;
+            document.getElementById('to-val').textContent = maxH;
+        }
+        if (parseInt(fromSlider.value) > maxH) {
+            fromSlider.value = maxH;
+            document.getElementById('from-val').textContent = maxH;
+        }
+    }
+
+    function onSlider() {
+        const fromH = parseInt(document.getElementById('from-slider').value);
+        let toH = parseInt(document.getElementById('to-slider').value);
+        if (toH < fromH) { toH = fromH; document.getElementById('to-slider').value = fromH; }
+        document.getElementById('from-val').textContent = fromH;
+        document.getElementById('to-val').textContent = toH;
+        renderSplits();
+    }
+
+    function updateLapsSliderMax() {
+        if (!allLaps.length) return;
+        const maxLap = Math.max(...allLaps.map(l => l.lap_number));
+        const fromEl = document.getElementById('laps-from-slider');
+        const toEl   = document.getElementById('laps-to-slider');
+        if (!fromEl || !toEl) return;
+        fromEl.max = maxLap;
+        toEl.max   = maxLap;
+        // Инициализируем to в максимум только при первой загрузке
+        if (parseInt(toEl.value) <= 1 || parseInt(toEl.value) > maxLap) {
+            toEl.value = maxLap;
+            lapsRangeTo = maxLap;
+            document.getElementById('laps-to-val').textContent = maxLap;
+        }
+        // Синхронизируем label
+        const from = parseInt(fromEl.value);
+        const to   = parseInt(toEl.value);
+        document.getElementById('laps-range-label').textContent = `Круги ${from} — ${to}`;
+    }
+
+    function onLapsSlider() {
+        const fromEl = document.getElementById('laps-from-slider');
+        const toEl   = document.getElementById('laps-to-slider');
+        let from = parseInt(fromEl.value);
+        let to   = parseInt(toEl.value);
+        if (to < from) { to = from; toEl.value = from; }
+        lapsRangeFrom = from;
+        lapsRangeTo   = to;
+        document.getElementById('laps-from-val').textContent = from;
+        document.getElementById('laps-to-val').textContent   = to;
+        document.getElementById('laps-range-label').textContent = `Круги ${from} — ${to}`;
+        renderLapsTable();
+    }
+
+    function renderSplits() {
+        const fromH  = parseInt(document.getElementById('from-slider').value);
+        const toH    = parseInt(document.getElementById('to-slider').value);
+        const fromMs = (fromH - 1) * 3600000;
+        const toMs   = toH * 3600000;
+        const durationH = toH - fromH + 1;
+
+        // Индекс участников из standings для категории и зачёта
+        const standingsMap = {};
+        for (const s of allStandings) standingsMap[s.id] = s;
+
+        // Считаем круги в периоде по участнику (только отфильтрованные)
+        const byParticipant = {};
+        for (const lap of allLaps) {
+            if (!filteredPids.has(lap.participant_id)) continue;
+            if (lap.cumulative_ms > fromMs && lap.cumulative_ms <= toMs) {
+                const pid = lap.participant_id;
+                if (!byParticipant[pid]) {
+                    byParticipant[pid] = { pid, surname: lap.surname, name: lap.name, start_number: lap.start_number, count: 0, lastLapMs: 0 };
+                }
+                byParticipant[pid].count++;
+                byParticipant[pid].lastLapMs = Math.max(byParticipant[pid].lastLapMs, lap.cumulative_ms);
+            }
+        }
+
+        const rows = Object.values(byParticipant).sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count;
+            // При равном кол-ве кругов — кто завершил последний круг раньше, тот лидер периода
+            if (a.lastLapMs !== b.lastLapMs) return a.lastLapMs - b.lastLapMs;
+            const rankA = standingsMap[a.pid]?.rank ?? 999;
+            const rankB = standingsMap[b.pid]?.rank ?? 999;
+            return rankA - rankB;
+        });
+        const tbody = document.getElementById('splits-body');
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--tri-muted);padding:16px">Нет кругов в выбранном диапазоне</td></tr>';
+            return;
+        }
+
+        const leader = rows[0];
+        tbody.innerHTML = rows.map((r, i) => {
+            const s = standingsMap[r.pid] || {};
+            const isRelay = s.category === 'Эстафета';
+            const badgeClass = isRelay ? 'tri-badge--relay' : 'tri-badge--personal';
+            const categoryLabel = isRelay ? 'Эстафета' : 'Личный';
+            const speed = (r.count * LAP_KM / durationH).toFixed(1);
+            const km = (r.count * LAP_KM).toFixed(1);
+
+            let gapBadge;
+            if (i === 0) {
+                gapBadge = `<span class="tri-gap-badge tri-gap-badge--leader">Лидер</span>`;
+            } else {
+                const diff = leader.count - r.count;
+                if (diff === 0) {
+                    // Равное число кругов — показываем разницу во времени
+                    const deltaMs = r.lastLapMs - leader.lastLapMs;
+                    const absSec = Math.abs(Math.round(deltaMs / 1000));
+                    const hh = Math.floor(absSec / 3600);
+                    const mm = Math.floor((absSec % 3600) / 60);
+                    const ss = absSec % 60;
+                    const sign = deltaMs >= 0 ? '+' : '−';
+                    const label = `${sign}${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+                    gapBadge = `<span class="tri-gap-badge tri-gap-badge--behind">${label}</span>`;
+                } else {
+                    const label = diff === 1 ? '−1 круг' : (diff <= 4 ? `−${diff} круга` : `−${diff} кругов`);
+                    gapBadge = `<span class="tri-gap-badge tri-gap-badge--behind">${label}</span>`;
+                }
+            }
+
+            return `<tr>
+                <td class="tri-rank">${i + 1}</td>
+                <td class="tri-bib">${r.start_number ?? ''}</td>
+                <td class="tri-name">${r.surname} ${r.name}</td>
+                <td><span class="tri-badge ${badgeClass}">${categoryLabel}</span></td>
+                <td>${km}</td>
+                <td>${r.count}</td>
+                <td class="tri-speed">${speed} км/ч</td>
+                <td>${gapBadge}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ---- Восстановление состояния после обновления страницы ----
+    (function restoreState() {
+        // Фильтры
+        const savedCat    = localStorage.getItem('tri_filter_category');
+        const savedGender = localStorage.getItem('tri_filter_gender');
+        if (savedCat)    document.getElementById('filter-category').value = savedCat;
+        if (savedGender) document.getElementById('filter-gender').value   = savedGender;
+
+        // Таб
+        const savedTab = localStorage.getItem('tri_tab') || 'distance';
+        if (savedTab !== 'distance') {
+            const btn = document.querySelector(`.tri-page-tab[data-tab="${savedTab}"]`);
+            if (btn) switchPageTab(savedTab, btn);
+        }
+    })();
+
+    loadStandings();
+    loadLaps();
+    setInterval(() => { loadStandings(); loadLaps(); }, 30000);
+
+    // Принудительный ресайз чартов при смене ориентации / изменении окна
+    window.addEventListener('resize', () => {
+        if (document.getElementById('tab-chart').style.display === 'none') return;
+        if (activeChartType === 'speed'    && triChart)         triChart.resize();
+        if (activeChartType === 'distance' && triChartDistance) triChartDistance.resize();
+        if (activeChartType === 'position' && triChartPosition) triChartPosition.resize();
+    });
+    </script>
+</body>
+</html>
